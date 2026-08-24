@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: toggle `.dark` on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================================
+   WealthFlow AI — Design System (Tailwind v4 CSS-first tokens)
+   Bloomberg/wealth-management professionalism + Linear + modern SaaS.
+   ========================================================================= */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand — refined financial blue */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe6fd;
+  --color-brand-200: #bfd1fb;
+  --color-brand-300: #94b2f7;
+  --color-brand-400: #628af0;
+  --color-brand-500: #3f66ea;
+  --color-brand-600: #2d4ade;
+  --color-brand-700: #2538cc;
+  --color-brand-800: #2330a5;
+  --color-brand-900: #212f82;
+  --color-brand-950: #181f50;
+
+  /* Premium accent — understated gold, used sparingly */
+  --color-accent-300: #e8cf8a;
+  --color-accent-400: #ddb95f;
+  --color-accent-500: #c9a227;
+  --color-accent-600: #a9851c;
+
+  /* Semantic status */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #0ea5e9;
+
+  /* Neutrals (kept close to Tailwind neutral for premium whites/blacks) */
+  --color-ink-50: #f8f9fb;
+  --color-ink-100: #eef0f4;
+  --color-ink-200: #dfe2e9;
+  --color-ink-300: #c6cad6;
+  --color-ink-400: #a1a6b6;
+  --color-ink-500: #7c8295;
+  --color-ink-600: #5c6175;
+  --color-ink-700: #43475a;
+  --color-ink-800: #303443;
+  --color-ink-900: #1e212b;
+  --color-ink-950: #14161d;
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
+
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05),
+    0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-pop: 0 12px 40px -8px rgba(16, 24, 40, 0.18);
+  --shadow-glow: 0 0 0 1px rgba(63, 102, 234, 0.12),
+    0 16px 48px -16px rgba(37, 56, 204, 0.35);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-white text-ink-900 dark:bg-ink-950 dark:text-ink-100;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    @apply bg-brand-500/20 text-brand-900 dark:text-brand-100;
+  }
+  /* Slim premium scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124, 130, 149, 0.4) transparent;
+  }
+}
+
+@layer utilities {
+  /* Subtle grid background for hero / dark sections */
+  .bg-grid {
+    background-image: linear-gradient(
+        to right,
+        rgba(124, 130, 149, 0.09) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, rgba(124, 130, 149, 0.09) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .bg-grid-dark {
+    background-image: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.05) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 bg-clip-text text-transparent;
+  }
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent);
+    mask-image: linear-gradient(to bottom, black 60%, transparent);
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* =========================================================================
+   Scroll reveal
+   ========================================================================= */
+@keyframes wf-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes wf-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.reveal {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+.reveal.reveal-visible {
+  animation: wf-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.reveal-fade {
+  opacity: 0;
+}
+.reveal-fade.reveal-visible {
+  animation: wf-fade 0.9s ease forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-fade {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+}
