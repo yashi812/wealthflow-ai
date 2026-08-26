@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  useRouterState,
+  Link,
+  Outlet,
+} from "@tanstack/react-router";
 import { getSession, logout } from "~/lib/auth/server";
 import { Button } from "~/components/ui/Button";
-import { Card, CardContent } from "~/components/ui/Card";
 import { useTheme } from "~/lib/theme";
 
 export const Route = createFileRoute("/app")({
@@ -19,8 +25,50 @@ export const Route = createFileRoute("/app")({
   component: AppShell,
 });
 
+const NAV = [
+  { label: "Dashboard", to: "/app/dashboard", icon: "grid" },
+  { label: "Prospects", to: null, icon: "users" },
+  { label: "Pipeline", to: null, icon: "kanban" },
+  { label: "Campaigns", to: null, icon: "send" },
+  { label: "Appointments", to: null, icon: "calendar" },
+  { label: "Analytics", to: null, icon: "chart" },
+];
+
+const ICONS: Record<string, React.ReactNode> = {
+  grid: <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />,
+  users: (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  kanban: (
+    <>
+      <path d="M6 5v14" /><path d="M12 5v10" /><path d="M18 5v14" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
+    </>
+  ),
+  chart: (
+    <>
+      <path d="M3 3v18h18" /><path d="m7 14 4-4 4 3 5-6" />
+    </>
+  ),
+};
+
 function AppShell() {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { theme, toggle } = useTheme();
   const [me, setMe] = useState<{
     id: string;
@@ -43,45 +91,59 @@ function AppShell() {
 
   return (
     <div className="flex min-h-dvh bg-ink-50 dark:bg-ink-950">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-ink-200 bg-white md:flex dark:border-ink-800 dark:bg-ink-900/60">
-        <div className="flex h-16 items-center gap-2.5 border-b border-ink-200 px-5 dark:border-ink-800">
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-ink-200 bg-white md:flex dark:border-ink-800 dark:bg-ink-900/60">
+        <Link to="/" className="flex h-16 items-center gap-2.5 border-b border-ink-200 px-5 dark:border-ink-800">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18" /><path d="M5 20V8" /><path d="M10 20V4" /><path d="M15 20v-8" /><path d="M20 20V6" /></svg>
           </span>
           <span className="text-[15px] font-semibold text-ink-900 dark:text-white">WealthFlow<span className="text-brand-500"> AI</span></span>
-        </div>
+        </Link>
         <nav className="flex-1 space-y-1 p-3">
-          {[
-            { label: "Dashboard", active: true },
-            { label: "Prospects", active: false },
-            { label: "Pipeline", active: false },
-            { label: "Campaigns", active: false },
-            { label: "Appointments", active: false },
-            { label: "Analytics", active: false },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={
-                item.active
-                  ? "rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700 dark:bg-brand-950/50 dark:text-brand-200"
-                  : "rounded-lg px-3 py-2 text-sm font-medium text-ink-500 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-ink-800"
-              }
-            >
-              {item.label}
-            </div>
-          ))}
+          {NAV.map((item) => {
+            const active = item.to ? pathname.startsWith(item.to) : false;
+            const inner = (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{ICONS[item.icon]}</svg>
+                {item.label}
+              </>
+            );
+            const cls = active
+              ? "flex items-center gap-2.5 rounded-lg bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700 dark:bg-brand-950/50 dark:text-brand-200"
+              : "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-500 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-ink-800";
+            return item.to ? (
+              <Link key={item.label} to={item.to} className={cls}>{inner}</Link>
+            ) : (
+              <div key={item.label} className={cls + " cursor-not-allowed opacity-60"} title="Coming in a later stage">{inner}</div>
+            );
+          })}
         </nav>
         <div className="border-t border-ink-200 p-3 dark:border-ink-800">
-          <Button variant="ghost" size="sm" className="w-full justify-start" onClick={onLogout}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
-            Log out
-          </Button>
+          <Link
+            to="/app/settings/icp"
+            className={
+              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium " +
+              (pathname.startsWith("/app/settings")
+                ? "bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-200"
+                : "text-ink-500 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-ink-800")
+            }
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+            Ideal Client Profile
+          </Link>
+          <div className="mt-1">
+            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={onLogout}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
+              Log out
+            </Button>
+          </div>
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col md:pl-60">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-ink-200 bg-white/80 px-5 backdrop-blur dark:border-ink-800 dark:bg-ink-900/70">
-          <h1 className="text-lg font-bold text-ink-900 dark:text-white">WealthFlow workspace</h1>
+          <h1 className="text-lg font-bold text-ink-900 dark:text-white">
+            {pathname.startsWith("/app/onboarding") ? "Set up your firm" : "WealthFlow workspace"}
+          </h1>
           <div className="flex items-center gap-3">
             <button
               onClick={toggle}
@@ -107,30 +169,7 @@ function AppShell() {
         </header>
 
         <main className="flex-1 p-6 lg:p-8">
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-xl font-bold text-ink-900 dark:text-ink-100">
-                Welcome{me?.name ? `, ${me!.name.split(" ")[0]}` : ""} 👋
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-500 dark:text-ink-400">
-                Your organization is set up and you're signed in. This is the workspace shell —
-                onboarding (ICP configuration) and the prospects / pipeline CRM arrive in the
-                next stages.
-              </p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: "Organization", value: me ? me.organizationId.slice(0, 8) + "…" : "—" },
-                  { label: "Role", value: me?.role || "—" },
-                  { label: "Plan", value: "Starter (trial)" },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-xl border border-ink-200/70 bg-ink-50 p-4 dark:border-ink-800 dark:bg-ink-900/50">
-                    <p className="text-xs font-medium text-ink-500 dark:text-ink-400">{s.label}</p>
-                    <p className="mt-1 text-sm font-semibold text-ink-900 dark:text-ink-100">{s.value}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <Outlet />
         </main>
       </div>
     </div>
