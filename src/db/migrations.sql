@@ -93,6 +93,19 @@ CREATE TABLE IF NOT EXISTS ideal_client_profiles (
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
 
+-- Stage 3: ICP onboarding wizard fields (idempotent additions).
+-- Business/professional criteria only — no sensitive personal financial data
+-- is required as an ICP precondition (see Responsible-AI note at top).
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS target_client_type text;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS min_client_profile text;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS services text;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS calendar_url text;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS email_account text;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS outreach_tone text;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS followup_cadence_days integer NOT NULL DEFAULT 2;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS daily_send_limit integer NOT NULL DEFAULT 20;
+ALTER TABLE ideal_client_profiles ADD COLUMN IF NOT EXISTS auto_followups boolean NOT NULL DEFAULT true;
+
 -- ---------------------------------------------------------------------------
 -- Lead sources
 -- ---------------------------------------------------------------------------
