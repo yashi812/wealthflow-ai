@@ -8,6 +8,7 @@ interface KpiCardProps {
   deltaTone?: "up" | "down" | "neutral";
   icon?: ReactNode;
   accent?: string;
+  hint?: string;
 }
 
 export function KpiCard({
@@ -17,6 +18,7 @@ export function KpiCard({
   deltaTone = "up",
   icon,
   accent = "bg-brand-500/10 text-brand-600 dark:text-brand-300",
+  hint,
 }: KpiCardProps) {
   return (
     <Card className="p-5">
@@ -50,6 +52,7 @@ export function KpiCard({
           </span>
         ) : null}
       </div>
+      {hint ? <p className="mt-2 text-xs text-ink-400 dark:text-ink-500">{hint}</p> : null}
     </Card>
   );
 }
