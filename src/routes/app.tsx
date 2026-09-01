@@ -27,8 +27,8 @@ export const Route = createFileRoute("/app")({
 
 const NAV = [
   { label: "Dashboard", to: "/app/dashboard", icon: "grid" },
-  { label: "Prospects", to: null, icon: "users" },
-  { label: "Pipeline", to: null, icon: "kanban" },
+  { label: "Prospects", to: "/app/prospects", icon: "users" },
+  { label: "Pipeline", to: "/app/pipeline", icon: "kanban" },
   { label: "Campaigns", to: null, icon: "send" },
   { label: "Appointments", to: null, icon: "calendar" },
   { label: "Analytics", to: null, icon: "chart" },
