@@ -143,7 +143,7 @@ function Hero() {
         </Reveal>
         <Reveal delay={240}>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <ButtonLink href="/signup" size="lg" className="w-full sm:w-auto">
+            <ButtonLink href="/sign-up" size="lg" className="w-full sm:w-auto">
               Start Free
             </ButtonLink>
             <ButtonLink
@@ -1046,7 +1046,7 @@ function Pricing() {
                 ))}
               </ul>
               <ButtonLink
-                href="/signup"
+                href="/sign-up"
                 variant={p.popular ? "primary" : p.monthly ? "outline" : "secondary"}
                 className="mt-6 w-full"
               >
@@ -1165,7 +1165,7 @@ function Cta() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <a
-                href="/signup"
+                href="/sign-up"
                 className="inline-flex h-12 items-center justify-center rounded-lg bg-white px-6 text-base font-semibold text-ink-900 transition-colors hover:bg-ink-100"
               >
                 Start Free

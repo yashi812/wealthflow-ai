@@ -1,26 +1,25 @@
-import { useEffect, useState } from "react";
+import { useClerk, UserButton } from "@clerk/tanstack-react-start";
 import {
   createFileRoute,
   redirect,
-  useNavigate,
   useRouterState,
   Link,
   Outlet,
 } from "@tanstack/react-router";
-import { getSession, logout } from "~/lib/auth/server";
+import { bootstrapAccount } from "~/lib/auth/server";
 import { Button } from "~/components/ui/Button";
 import { useTheme } from "~/lib/theme";
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
-    // Route guard: require an authenticated session to view /app.
-    try {
-      const { user } = await getSession();
-      if (user) return;
-    } catch {
-      /* unauthenticated or DB error -> redirect to login */
-    }
-    throw redirect({ to: "/login" });
+    // Route guard + first-run provisioning, resolved from the CLERK session on
+    // the server. `bootstrapAccount` is idempotent: it guarantees our
+    // users / organizations / team_members(owner) rows exist for this Clerk
+    // user, then returns them. It runs on hard SSR loads too (the Clerk session
+    // cookie is available server-side), so protected pages no longer bounce.
+    const res = await bootstrapAccount().catch(() => null);
+    if (!res?.signedIn) throw redirect({ to: "/sign-in/$", params: { _splat: "" } });
+    return { me: res.user };
   },
   component: AppShell,
 });
@@ -67,26 +66,17 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 function AppShell() {
-  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { theme, toggle } = useTheme();
-  const [me, setMe] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    organizationId: string;
-  } | null>(null);
-
-  useEffect(() => {
-    getSession()
-      .then((r: any) => setMe(r.user))
-      .catch(() => {});
-  }, []);
+  const clerk = useClerk();
+  // The signed-in user + organization, resolved server-side from the Clerk
+  // session by the /app route guard (see beforeLoad above).
+  const { me } = Route.useRouteContext();
 
   async function onLogout() {
-    await logout();
-    await navigate({ to: "/login" });
+    // Clerk owns the session; signing out clears it and drops us back to the
+    // public site. Protected routes then redirect to /sign-in.
+    await clerk.signOut({ redirectUrl: "/" });
   }
 
   return (
@@ -157,13 +147,14 @@ function AppShell() {
               )}
             </button>
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
-                {me?.name?.charAt(0)?.toUpperCase() || "U"}
-              </span>
-              <div className="hidden sm:block">
+              <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold leading-tight text-ink-900 dark:text-ink-100">{me?.name || "…"}</p>
                 <p className="text-xs text-ink-500 dark:text-ink-400">{me?.email}</p>
               </div>
+              {/* Clerk-owned account control: avatar, profile, security, sign out */}
+              <UserButton
+                appearance={{ elements: { avatarBox: "h-9 w-9" } }}
+              />
             </div>
           </div>
         </header>

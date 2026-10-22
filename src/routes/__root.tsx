@@ -1,4 +1,10 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { ClerkProvider } from "@clerk/tanstack-react-start";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import appCss from "~/styles/app.css?url";
 import { ThemeProvider } from "~/lib/theme";
@@ -9,7 +15,8 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       {
-        title: "WealthFlow AI — AI-Powered Client Acquisition for Financial Advisory Firms",
+        title:
+          "WealthFlow AI — AI-Powered Client Acquisition for Financial Advisory Firms",
       },
       {
         name: "description",
@@ -38,8 +45,13 @@ export const Route = createRootRoute({
   notFoundComponent: () => (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-white px-6 text-center dark:bg-ink-950">
       <p className="text-5xl font-bold text-brand-600">404</p>
-      <p className="text-lg font-semibold text-ink-900 dark:text-ink-100">Page not found</p>
-      <a href="/" className="text-sm text-brand-600 underline hover:text-brand-700">
+      <p className="text-lg font-semibold text-ink-900 dark:text-ink-100">
+        Page not found
+      </p>
+      <a
+        href="/"
+        className="text-sm text-brand-600 underline hover:text-brand-700"
+      >
         Back to home
       </a>
     </div>
@@ -64,8 +76,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
-        <Scripts />
+        <ClerkProvider>
+          {children}
+          <Scripts />
+        </ClerkProvider>
       </body>
     </html>
   );
