@@ -13,7 +13,7 @@
 // ============================================================================
 import { createServerFn } from "@tanstack/react-start";
 import { sql } from "~/db";
-import { withSession, unauthorized, type SessionPayload } from "~/lib/auth/session";
+import { requireAccount } from "~/lib/auth/account";
 import { jsonError, isEmail } from "~/lib/auth/validate";
 import { ALL_STATUSES, type CrmLead, type CrmActivity, type LeadStatus } from "~/lib/leads/status";
 
@@ -110,16 +110,15 @@ const SORT_WHITELIST: Record<string, string> = {
 };
 
 export const listLeads = createServerFn({ method: "GET" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ data, context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async ({ data }) => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const input = (data ?? {}) as ListLeadsInput;
     const db = sql();
 
     const where = ["l.organization_id = $oid"];
-    const params: Record<string, unknown> = { oid: s.oid };
+    const params: Record<string, unknown> = { oid: s.organizationId };
 
     const term = String(input.search ?? "").trim();
     if (term) {
@@ -158,11 +157,10 @@ export const listLeads = createServerFn({ method: "GET" })
 // --- create ------------------------------------------------------------------
 
 export const createLead = createServerFn({ method: "POST" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ data, context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async ({ data }) => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const d = (data ?? {}) as {
       name?: unknown;
       company?: unknown;
@@ -189,12 +187,12 @@ export const createLead = createServerFn({ method: "POST" })
         organization_id, name, company, email, phone, source, status, owner,
         notes, tags, consent_ok
       ) VALUES (
-        ${s.oid}, ${name},
+        ${s.organizationId}, ${name},
         ${String(d.company ?? "").trim() || null},
         ${email || null},
         ${String(d.phone ?? "").trim() || null},
         ${String(d.source ?? "").trim() || null},
-        ${status}, ${s.uid},
+        ${status}, ${s.userId},
         ${String(d.notes ?? "").trim() || null},
         ${tags},
         ${Boolean(d.consentOk)}
@@ -205,11 +203,11 @@ export const createLead = createServerFn({ method: "POST" })
 
     await db`
       INSERT INTO lead_activities (organization_id, lead_id, user_id, type, summary, meta)
-      VALUES (${s.oid}, ${lead.id}, ${s.uid}, 'created',
+      VALUES (${s.organizationId}, ${lead.id}, ${s.userId}, 'created',
               ${`Lead "${lead.name}" added to pipeline`},
               ${JSON.stringify({ status: lead.status, source: lead.source ?? "" }) })
     `;
-    await audit(db, { organization_id: s.oid, user_id: s.uid, action: "lead_created", meta: { lead_id: lead.id, name: lead.name } });
+    await audit(db, { organization_id: s.organizationId, user_id: s.userId, action: "lead_created", meta: { lead_id: lead.id, name: lead.name } });
     return { lead };
   });
 
@@ -231,17 +229,16 @@ export interface UpdateLeadInput {
 }
 
 export const updateLead = createServerFn({ method: "POST" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ data, context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async ({ data }) => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const d = (data ?? {}) as UpdateLeadInput;
     const id = String(d.id ?? "");
     if (!id) return jsonError(400, "Lead id is required.");
 
     const db = sql();
-    const existing = (await db`SELECT * FROM leads WHERE id = ${id} AND organization_id = ${s.oid} LIMIT 1`)[0];
+    const existing = (await db`SELECT * FROM leads WHERE id = ${id} AND organization_id = ${s.organizationId} LIMIT 1`)[0];
     if (!existing) return jsonError(404, "Lead not found.");
 
     const sets: string[] = [];
@@ -316,7 +313,7 @@ export const updateLead = createServerFn({ method: "POST" })
       const v = d.owner === null || d.owner === "" ? null : String(d.owner);
       if (v) {
         const member = (await db`
-          SELECT 1 FROM team_members WHERE organization_id = ${s.oid} AND user_id = ${v} LIMIT 1
+          SELECT 1 FROM team_members WHERE organization_id = ${s.organizationId} AND user_id = ${v} LIMIT 1
         `)[0];
         if (!member) return jsonError(400, "Owner must be a member of your firm.");
       }
@@ -350,27 +347,27 @@ export const updateLead = createServerFn({ method: "POST" })
       `UPDATE leads SET ${sets.join(", ")}
        WHERE id = $id AND organization_id = $oid
        RETURNING *`,
-      { ...params, id, oid: s.oid }
+      { ...params, id, oid: s.organizationId }
     );
     const lead = toLead(row);
 
     if (hasStatusChange) {
       await db`
         INSERT INTO lead_activities (organization_id, lead_id, user_id, type, summary, meta)
-        VALUES (${s.oid}, ${lead.id}, ${s.uid}, 'status_change',
+        VALUES (${s.organizationId}, ${lead.id}, ${s.userId}, 'status_change',
                 ${`Status moved: ${String(changes.status!.from)} → ${String(changes.status!.to)}`},
                 ${JSON.stringify(changes.status) })
       `;
       await audit(db, {
-        organization_id: s.oid,
-        user_id: s.uid,
+        organization_id: s.organizationId,
+        user_id: s.userId,
         action: "lead_status_change",
         meta: { lead_id: lead.id, from: changes.status!.from, to: changes.status!.to },
       });
     } else if (changes.notes) {
       await db`
         INSERT INTO lead_activities (organization_id, lead_id, user_id, type, summary, meta)
-        VALUES (${s.oid}, ${lead.id}, ${s.uid}, 'note', ${"Notes updated"}, ${JSON.stringify({}) })
+        VALUES (${s.organizationId}, ${lead.id}, ${s.userId}, 'note', ${"Notes updated"}, ${JSON.stringify({}) })
       `;
     }
 
@@ -380,11 +377,10 @@ export const updateLead = createServerFn({ method: "POST" })
 // --- activity ----------------------------------------------------------------
 
 export const getLeadActivity = createServerFn({ method: "GET" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ data, context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async ({ data }) => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const leadId = String((data as any)?.leadId ?? "");
     if (!leadId) return jsonError(400, "Lead id is required.");
     const db = sql();
@@ -395,7 +391,7 @@ export const getLeadActivity = createServerFn({ method: "GET" })
        WHERE la.lead_id = $leadId AND la.organization_id = $oid
        ORDER BY la.created_at DESC
        LIMIT 200`,
-      { leadId, oid: s.oid }
+      { leadId, oid: s.organizationId }
     );
     const activities: CrmActivity[] = rows.map((r: any) => ({
       id: String(r.id),
@@ -409,11 +405,10 @@ export const getLeadActivity = createServerFn({ method: "GET" })
   });
 
 export const addActivity = createServerFn({ method: "POST" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ data, context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async ({ data }) => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const d = (data ?? {}) as { leadId?: unknown; summary?: unknown; type?: unknown };
     const leadId = String(d.leadId ?? "");
     const summary = String(d.summary ?? "").trim();
@@ -421,13 +416,13 @@ export const addActivity = createServerFn({ method: "POST" })
     if (!summary || summary.length > 2000) return jsonError(400, "Note must be 1–2000 characters.");
 
     const db = sql();
-    const exists = (await db`SELECT 1 FROM leads WHERE id = ${leadId} AND organization_id = ${s.oid} LIMIT 1`)[0];
+    const exists = (await db`SELECT 1 FROM leads WHERE id = ${leadId} AND organization_id = ${s.organizationId} LIMIT 1`)[0];
     if (!exists) return jsonError(404, "Lead not found.");
 
     const type = String(d.type ?? "note");
     const [row] = await db`
       INSERT INTO lead_activities (organization_id, lead_id, user_id, type, summary, meta)
-      VALUES (${s.oid}, ${leadId}, ${s.uid}, ${type}, ${summary}, ${JSON.stringify({}) })
+      VALUES (${s.organizationId}, ${leadId}, ${s.userId}, ${type}, ${summary}, ${JSON.stringify({}) })
       RETURNING *
     `;
     return {
@@ -445,23 +440,22 @@ export const addActivity = createServerFn({ method: "POST" })
 // --- org metadata (sources + team for owner assignment) ------------------------
 
 export const getCrmMeta = createServerFn({ method: "GET" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async () => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const db = sql();
     const sourceRows = await db.query(
       `SELECT DISTINCT source FROM leads WHERE organization_id = $oid AND source IS NOT NULL AND source <> '' ORDER BY source`,
-      { oid: s.oid }
+      { oid: s.organizationId }
     );
-    const configured = await db`SELECT name FROM lead_sources WHERE organization_id = ${s.oid} AND is_active ORDER BY name`;
+    const configured = await db`SELECT name FROM lead_sources WHERE organization_id = ${s.organizationId} AND is_active ORDER BY name`;
     const members = await db.query(
       `SELECT u.id, u.name, u.email, tm.role
        FROM team_members tm JOIN users u ON u.id = tm.user_id
        WHERE tm.organization_id = $oid
        ORDER BY u.name`,
-      { oid: s.oid }
+      { oid: s.organizationId }
     );
     const sources: string[] = [];
     for (const r of [...configured, ...sourceRows]) {
@@ -482,15 +476,14 @@ export const getCrmMeta = createServerFn({ method: "GET" })
 // --- dashboard KPIs -----------------------------------------------------------
 
 export const getLeadStats = createServerFn({ method: "GET" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async () => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const db = sql();
     const rows = await db.query(
       `SELECT status, count(*)::int AS n FROM leads WHERE organization_id = $oid GROUP BY status`,
-      { oid: s.oid }
+      { oid: s.organizationId }
     );
     const byStatus: Record<string, number> = {};
     let total = 0;
@@ -504,7 +497,7 @@ export const getLeadStats = createServerFn({ method: "GET" })
 
     const scoreRow = (
       await db.query(`SELECT avg(lead_score)::float AS avg_score FROM leads WHERE organization_id = $oid`, {
-        oid: s.oid,
+        oid: s.organizationId,
       })
     )[0] as any;
     const avgScore = scoreRow?.avg_score ? Math.round(Number(scoreRow.avg_score)) : null;

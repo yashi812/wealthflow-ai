@@ -25,7 +25,7 @@
 // ============================================================================
 import { createServerFn } from "@tanstack/react-start";
 import { sql } from "~/db";
-import { withSession, unauthorized, type SessionPayload } from "~/lib/auth/session";
+import { requireAccount } from "~/lib/auth/account";
 import { jsonError } from "~/lib/auth/validate";
 
 export interface IcpFormData {
@@ -46,14 +46,13 @@ export interface IcpFormData {
 
 /** Get the current org's ICP (joined with its org identity), or nulls. */
 export const getIcp = createServerFn({ method: "GET" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async () => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const db = sql();
     const org = (
-      await db`SELECT id, name, website, firm_type FROM organizations WHERE id = ${s.oid} LIMIT 1`
+      await db`SELECT id, name, website, firm_type FROM organizations WHERE id = ${s.organizationId} LIMIT 1`
     )[0];
     if (!org) return { org: null, icp: null };
     const icp = (
@@ -61,7 +60,7 @@ export const getIcp = createServerFn({ method: "GET" })
         SELECT organization_id, firm_type, target_client_type, target_location,
                min_client_profile, services, calendar_url, email_account,
                outreach_tone, followup_cadence_days, daily_send_limit, auto_followups
-        FROM ideal_client_profiles WHERE organization_id = ${s.oid} LIMIT 1
+        FROM ideal_client_profiles WHERE organization_id = ${s.organizationId} LIMIT 1
       `
     )[0] ?? null;
     return {
@@ -90,29 +89,27 @@ export const getIcp = createServerFn({ method: "GET" })
 
 /** Whether the org already has a completed ICP (used for post-signup routing). */
 export const hasIcp = createServerFn({ method: "GET" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return { has: false };
+  .handler(async () => {
+    const s = await requireAccount();
+    if (s instanceof Response) return { has: false };
     const db = sql();
-    const rows = await db`SELECT 1 FROM ideal_client_profiles WHERE organization_id = ${s.oid} LIMIT 1`;
+    const rows = await db`SELECT 1 FROM ideal_client_profiles WHERE organization_id = ${s.organizationId} LIMIT 1`;
     return { has: rows.length > 0 };
   });
 
 /** Upsert the org's ICP + org identity fields. */
 export const saveIcp = createServerFn({ method: "POST" })
-  .middleware([withSession])
   .validator((d: unknown) => d)
-  .handler(async ({ data, context }) => {
-    const s = context.session as SessionPayload | null;
-    if (!s?.oid) return unauthorized();
+  .handler(async ({ data }) => {
+    const s = await requireAccount();
+    if (s instanceof Response) return s;
     const d = (data ?? {}) as Partial<IcpFormData>;
     const firmName = String(d.firmName ?? "").trim();
     if (!firmName) return jsonError(400, "Firm name is required.");
 
     const db = sql();
-    const oid = s.oid;
+    const oid = s.organizationId;
 
     await db`
       UPDATE organizations
@@ -160,7 +157,7 @@ export const saveIcp = createServerFn({ method: "POST" })
     try {
       await db`
         INSERT INTO audit_logs (organization_id, user_id, action, ip, user_agent, meta)
-        VALUES (${oid}, ${s.uid}, 'icp_upsert', ${context.ip}, ${context.ua},
+        VALUES (${oid}, ${s.userId}, 'icp_upsert', 'app', 'clerk',
                 ${JSON.stringify({ firm_type: d.firmType }) })
       `;
     } catch (e) {

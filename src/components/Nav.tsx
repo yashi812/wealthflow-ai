@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Show, UserButton } from "@clerk/tanstack-react-start";
 import { ButtonLink } from "./ui/Button";
 import { useTheme } from "~/lib/theme";
 import { cn } from "~/lib/cn";
@@ -96,19 +97,32 @@ export function Nav() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <a
-            href="/login"
-            className="hidden text-sm font-semibold text-ink-700 transition-colors hover:text-ink-900 sm:inline dark:text-ink-200 dark:hover:text-white"
-          >
-            Log in
-          </a>
-          <ButtonLink
-            href="/signup"
-            size="sm"
-            className="hidden sm:inline-flex"
-          >
-            Start Free
-          </ButtonLink>
+          {/* Auth state comes from Clerk; signed-in visitors get the workspace
+              link + Clerk's UserButton instead of the marketing CTAs. */}
+          <Show when="signed-out">
+            <a
+              href="/sign-in"
+              className="hidden text-sm font-semibold text-ink-700 transition-colors hover:text-ink-900 sm:inline dark:text-ink-200 dark:hover:text-white"
+            >
+              Log in
+            </a>
+            <ButtonLink
+              href="/sign-up"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
+              Start Free
+            </ButtonLink>
+          </Show>
+          <Show when="signed-in">
+            <a
+              href="/app"
+              className="hidden text-sm font-semibold text-ink-700 transition-colors hover:text-ink-900 sm:inline dark:text-ink-200 dark:hover:text-white"
+            >
+              Workspace
+            </a>
+            <UserButton appearance={{ elements: { avatarBox: "h-9 w-9" } }} />
+          </Show>
           <button
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 text-ink-700 md:hidden dark:border-ink-700 dark:text-ink-200"
             onClick={() => setOpen((o) => !o)}
@@ -126,8 +140,9 @@ export function Nav() {
         <div className="border-t border-ink-200/70 bg-white px-5 py-4 md:hidden dark:border-ink-800 dark:bg-ink-950">
           <div className="flex flex-col gap-1">
             {NAV_LINKS.concat(
-              { href: "/login", label: "Log in" },
-              { href: "/signup", label: "Start Free" }
+              { href: "/sign-in", label: "Log in" },
+              { href: "/sign-up", label: "Start Free" },
+              { href: "/app", label: "Workspace" }
             ).map((l) => (
               <a
                 key={l.label}

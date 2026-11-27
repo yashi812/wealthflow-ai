@@ -416,6 +416,18 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_org  ON audit_logs (organization_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs (user_id);
 
 -- ---------------------------------------------------------------------------
+-- Stage 5: Clerk identity mapping (auth is handled by Clerk; Postgres remains
+-- the source of truth for users, organizations and org-scoped data).
+--   * users.clerk_id is the Clerk user id ("user_xxx") — the join key used to
+--     resolve a Clerk session into OUR user row on every server request.
+--   * password_hash stays for legacy rows only (Clerk owns credentials now),
+--     so it must be nullable and is never written by the app.
+-- ---------------------------------------------------------------------------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS clerk_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_clerk_id ON users (clerk_id);
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+
+-- ---------------------------------------------------------------------------
 -- Password reset tokens (clear-text token never stored; only its hash is kept)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reset_tokens (
