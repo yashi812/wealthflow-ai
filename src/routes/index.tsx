@@ -147,7 +147,7 @@ function Hero() {
               Start Free
             </ButtonLink>
             <ButtonLink
-              href="#product"
+              href="/demo"
               variant="outline"
               size="lg"
               className="w-full sm:w-auto"
@@ -155,7 +155,7 @@ function Hero() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <path d="M8 5v14l11-7z" />
               </svg>
-              Watch Demo
+              See the live demo
             </ButtonLink>
           </div>
         </Reveal>
